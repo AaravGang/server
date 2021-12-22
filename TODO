@@ -35,3 +35,6 @@ show progess bar while recieving and transferring huge data - done
 SEPERATE OUT THE IMAGES FROM THE ACTIVE USERS, GIVE THEM THEIR OWN DICT- done
 properly deal with images on client side - done
 select text color accoring to image color - done
+
+
+ADD A RECIEVE ALL IMAGES FUNCTION IN CLIENT CODE

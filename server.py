@@ -138,7 +138,6 @@ def threaded_client(conn, addr, user_id, user_stats):
     while True:
         try:
             data = recieve_data(conn)
-            print(len(data))
 
             # client disconnected
             if not data:
