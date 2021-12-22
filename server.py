@@ -418,7 +418,7 @@ def threaded_client(conn, addr, user_id, user_stats):
                     data["image"]["shape"],
                     data["image"]["dtype"],
                 )
-                if size > 30000:
+                if size > max_image_size:
                     send({"error": "Image too large.", "image_allowed": False}, conn)
                     print(
                         f"[CANCELLED UPLOADING]: {active_users[user_id]['username']} ({user_id})"

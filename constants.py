@@ -23,3 +23,6 @@ ORANGE = (206, 11, 43)
 GRAY = (128, 128, 128)
 USER_COLORS = [PINK, ORANGE, BLUE, GREEN, RED]
 
+
+max_image_size = 256*256*3
+
