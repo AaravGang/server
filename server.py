@@ -228,7 +228,7 @@ def threaded_client(conn, addr, user_id, user_stats):
                     reply["message"] = {
                         "id": f"{user_id}-{opp_id}-{game}",
                         "title": "Message",
-                        "text": "Canceled successfully.",
+                        "text": "Cancelled successfully.",
                     }
 
                 else:
