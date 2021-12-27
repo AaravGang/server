@@ -39,6 +39,7 @@ def create_user(conn, addr):
         "challenged": {},  # requests this user has sent and are yet to be accepted by another
         "pending": {},  # requests this user needs to accept
         "game": None,
+        "bot": False,
     }
 
     # add this user to the active users
@@ -159,13 +160,25 @@ def threaded_client(conn, addr, user_id, user_stats):
                 # deal with edge cases that could raise errors
                 if challenged_user_id not in connections.keys():
                     reply["error"] = "Invalid User ID!"
-                elif active_users[challenged_user_id]["engaged"]:
-                    reply["error"] = "User is in a game!"
+
                 elif len(active_users[user_id]["challenged"]) > 0:
                     reply["error"] = "You have already challenged someone!"
+
                 elif len(active_users[user_id]["pending"]) > 0:
                     reply["error"] = "You have a pending request!"
-                elif len(active_users[challenged_user_id]["pending"]):
+                
+                elif active_users[user_id]["engaged"]:
+                    reply["error"] = "You are in a game"
+
+                elif (
+                    active_users[challenged_user_id]["engaged"]
+                    and not active_users[challenged_user_id]["bot"]
+                ):
+                    reply["error"] = "User is in a game!"
+                elif (
+                    len(active_users[challenged_user_id]["pending"])
+                    and not active_users[challenged_user_id]["bot"]
+                ):
                     reply["error"] = "That user has a pending request!"
                 else:
                     # prepare a challenge request, to send to challenged_user
@@ -180,6 +193,10 @@ def threaded_client(conn, addr, user_id, user_stats):
                         "context": {"challenger_id": user_id, "game": game},
                         "closeable": False,
                         "id": game_id,
+                    }
+                    challenge_req["challenge"] = {
+                        "challenger_id": user_id,
+                        "game": game,
                     }
                     send(challenge_req, connections[challenged_user_id])
 
@@ -501,7 +518,7 @@ def threaded_client(conn, addr, user_id, user_stats):
                     reply["message"] = {"title": "Updated successfully!"}
 
                     print(
-                        f"[UPDATED STATS]: {active_users[user_id]['username']} ({user_id})"
+                        f"[UPDATED STATS]: {active_users[user_id]['username']} ({user_id}) \n {data['updated']}"
                     )
 
             send(reply, conn)
