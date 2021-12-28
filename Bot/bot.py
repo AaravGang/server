@@ -1,4 +1,4 @@
-import json, time, pickle
+import json, time, pickle, pygame
 import numpy as np
 from network import Network
 from _thread import start_new_thread
@@ -76,9 +76,9 @@ def accept_challenge(**kwargs):
 
 
 # move/place a piece
-def move(move_id):
+def move(game_id, move_id):
     move_req = {}
-    move_req["move"] = move_id
+    move_req["move"] = {"game_id": game_id, "move": move_id}
     send(move_req)
 
 
@@ -98,15 +98,16 @@ def send_image(img):
     send({"image": {"size": size, "shape": img.shape, "dtype": img.dtype}})
 
     allowed = n.recv()
+    print(allowed)
 
     time.sleep(1)
 
-    # print("started sending image")
+    print("started sending image")
     # send the image bytes
     for batch in range(0, size, 2048):
         send(image_bytes[batch : batch + 2048], pickle_data=False)
 
-    # print("done sending image")
+    print("done sending image")
 
 
 # add an user to the active users
@@ -131,7 +132,7 @@ def update_user(id, changed):
 
 # recieve some data from the server
 def recieve():
-    global game_details, game_board, run
+    global games, run
     while run:
         data = n.recv()
 
@@ -158,7 +159,9 @@ def recieve():
 
         # new game started
         if data.get("new_game"):
+
             game_details = data["new_game"]["details"]  # {game_id, board}
+            game_id = game_details["game_id"]
             game_name = data["new_game"]["game"]  # game name
 
             print(
@@ -168,21 +171,28 @@ def recieve():
             # setup the game accordingly
             if game_name == "tic_tac_toe":
                 game_board = TTT_Board(
+                    game_id,
+                    curr_user_id,
                     X_id=game_details["board"].X_id,
                     O_id=game_details["board"].O_id,
                     move=move,
+                    turn_id=game_details["board"].turn_id,
                     rows=game_details["board"].rows,
                     cols=game_details["board"].cols,
                 )
             elif game_name == "connect4":
                 game_board = Connect4_Board(
+                    game_id,
                     curr_user_id,
                     game_details["board"].red_id,
                     game_details["board"].blue_id,
                     move=move,
+                    turn_id=game_details["board"].turn_id,
                     rows=game_details["board"].rows,
                     cols=game_details["board"].cols,
                 )
+
+            games[game_id] = game_board
 
         if data.get("error"):
             print(f"[BOT]: ERROR : {data['error']}")
@@ -197,7 +207,7 @@ def recieve():
         # someone has moved,update on this screen
         elif data.get("moved"):
             # move on the board, and also send the request for this players move
-            game_board.place(data["moved"])
+            games[data["moved"]["game_id"]].place(data["moved"])
 
         # update a user's details
         if data.get("updated"):
@@ -206,7 +216,7 @@ def recieve():
 
 # setup all the variables and connect to the server
 def setup(error=None):
-    global n, curr_user_id, active_users, curr_user, game_board, game_details
+    global n, curr_user_id, active_users, curr_user, games
 
     init_data = connect()
     if init_data:
@@ -220,9 +230,7 @@ def setup(error=None):
 
     curr_user = active_users[curr_user_id]  # load the current user
 
-    # game stuff
-    game_board = None
-    game_details = None
+    games = {}
 
 
 # main function, put everything together
@@ -231,6 +239,16 @@ def main():
     start_new_thread(recieve, ())
 
     send({"updated": {"bot": True, "username": "SlUgGyFrOgS"}})
+
+    message = n.recv()
+
+    time.sleep(1)
+
+    with open("bot_img.png") as f:
+        img = pygame.image.load(f)
+        img = pygame.surfarray.array3d(pygame.transform.scale(img, (256, 256),))
+
+        send_image(img)
 
     # keep the program running
     while run:
