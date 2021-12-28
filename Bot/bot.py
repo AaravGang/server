@@ -1,5 +1,5 @@
 import json, time, pickle, pygame
-import numpy as np
+# import numpy as np
 from network import Network
 from _thread import start_new_thread
 from utilities import *

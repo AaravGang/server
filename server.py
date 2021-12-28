@@ -2,7 +2,7 @@ import socket, pickle, random, copy, json, time, pygame
 from _thread import start_new_thread
 from constants import *
 from games_logic import TTT_Logic, Connect4_Logic
-import numpy as np
+# import numpy as np
 
 # #/Users/sishirgang/.ngrok2/ngrok.yml
 
