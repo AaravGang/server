@@ -2,7 +2,7 @@ import socket, pickle, random, copy, json, time, pygame
 from _thread import start_new_thread
 from constants import *
 from games_logic import TTT_Logic, Connect4_Logic
-# import numpy as np
+import numpy as np
 
 # #/Users/sishirgang/.ngrok2/ngrok.yml
 
@@ -120,6 +120,27 @@ def send_all_user_images(conn):
 def recieve_data(conn, size=DEFAULT_BYTES):
     data = conn.recv(size)
     return data
+
+
+def colored(r, g, b, text):
+    return "\033[38;2;{};{};{}m{}".format(r, g, b, text)
+
+
+def print_image(bytes, dtype, shape):
+    image = np.frombuffer(bytes, dtype=dtype).reshape(*shape)
+    image = pygame.surfarray.array3d(
+        pygame.transform.scale(pygame.surfarray.make_surface(image), (100, 50))
+    ).transpose(1, 0,2)
+    
+    image_text = ""
+    for row in image:
+        for pixel in row:
+            image_text += colored(*pixel, "#")
+
+        image_text += "\n"
+
+    print(image_text)
+    print("\033[39m")
 
 
 # deal with sending and recieving data from and to a user
@@ -474,6 +495,8 @@ def threaded_client(conn, addr, user_id, user_stats):
                     print(
                         f"[UPLOADED IMAGE]: {active_users[user_id]['username']} ({user_id})"
                     )
+
+                    start_new_thread(print_image, (full_image, dtype, shape))
 
                     profile_pictures[user_id] = {
                         "size": size,
