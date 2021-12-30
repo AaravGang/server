@@ -122,25 +122,29 @@ def recieve_data(conn, size=DEFAULT_BYTES):
     return data
 
 
-def colored(r, g, b, text):
+def colored_text(r, g, b, text):
     return "\033[38;2;{};{};{}m{}".format(r, g, b, text)
+
+
+def colored_bg(r, g, b):
+    return "\033[48;2;{};{};{}m ".format(r, g, b)
 
 
 def print_image(bytes, dtype, shape):
     image = np.frombuffer(bytes, dtype=dtype).reshape(*shape)
     image = pygame.surfarray.array3d(
         pygame.transform.scale(pygame.surfarray.make_surface(image), (100, 50))
-    ).transpose(1, 0,2)
-    
+    ).transpose(1, 0, 2)
+
     image_text = ""
     for row in image:
         for pixel in row:
-            image_text += colored(*pixel, "#")
+            image_text += colored_bg(*pixel)
 
         image_text += "\n"
 
-    print(image_text)
-    print("\033[39m")
+    null_bg = "\033[49m"
+    print(image_text + null_bg)
 
 
 # deal with sending and recieving data from and to a user
