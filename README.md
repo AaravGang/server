@@ -1,4 +1,4 @@
-# Server Code for online tic tac toe and connect4
+# Server Code for Sluggy Game Center
 
 ---
 
