@@ -502,7 +502,7 @@ def threaded_client(conn, addr, user_id, user_stats):
                         f"[UPLOADED IMAGE]: {active_users[user_id]['username']} ({user_id})"
                     )
 
-                    start_new_thread(print_image, (full_image, dtype, shape))
+                    # start_new_thread(print_image, (full_image, dtype, shape))
 
                     profile_pictures[user_id] = {
                         "size": size,
