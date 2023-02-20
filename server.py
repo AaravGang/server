@@ -463,11 +463,13 @@ def threaded_client(conn, addr, user_id, user_stats):
                 print(
                     f"[UPLOADING IMAGE]: {active_users[user_id]['username']} ({user_id})"
                 )
+
                 size, shape, dtype = (
                     data["image"]["size"],
                     data["image"]["shape"],
                     data["image"]["dtype"],
                 )
+
                 if size > max_image_size:
                     send({"error": "Image too large.", "image_allowed": False}, conn)
                     print(
@@ -494,7 +496,7 @@ def threaded_client(conn, addr, user_id, user_stats):
                     if disconnected:
                         continue
 
-                    # print("Total bytes recieved: ", len(full_image))
+                    print("Total bytes recieved: ", len(full_image))
 
                     print(
                         f"[UPLOADED IMAGE]: {active_users[user_id]['username']} ({user_id})"
@@ -529,7 +531,7 @@ def threaded_client(conn, addr, user_id, user_stats):
 
                     time.sleep(2)
 
-                    reply["message"] = {"title": "Updated successfully!"}
+                    reply["message"] = {"title": "Updated image successfully!"}
 
                     print(
                         f"[FINISHED UPLOAD]:  {active_users[user_id]['username']} ({user_id})"

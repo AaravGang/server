@@ -1,4 +1,5 @@
-import random
+import random, time
+import numpy as np
 
 
 # the tic tac toe board
@@ -151,184 +152,225 @@ class TTT_Board:
             return best_score
 
 
-# the connect4 board
-class Connect4_Board:
+class ConnectAI:
     def __init__(
-        self, game_id, curr_player_id, red_id, blue_id, move, turn_id, rows=12, cols=13,
+        self, game_id, player_id, opp_id, turn_id, move_req, rows=6, cols=7,
     ):
+        self.rows, self.cols = rows, cols  # dimensions of the board
+        self.connect_n = 4  # how many coins need to be connected to win?
+
+        # ids
         self.game_id = game_id
-        self.curr_user_id = curr_player_id
-        self.red_id, self.blue_id = red_id, blue_id
-        self.opp_id = self.red_id if self.curr_user_id == self.blue_id else self.blue_id
+        self.player_id = int(player_id)
+        self.opp_id = int(opp_id)
+        self.turn_id = int(turn_id)
+        self.players = [self.player_id, self.opp_id]
 
-        self.player_color = "red" if self.red_id == curr_player_id else "blue"
-        self.opp_color = "red" if self.player_color == "blue" else "blue"
-        self.turn_id = turn_id
-        self.turn = "red" if self.turn_id == self.red_id else "blue"
+        self.move_req = move_req  # send a move request to the server
 
-        self.scores = {self.player_color: 1, self.opp_color: -1, "tie": 0}
+        # 2d game board
+        # 0 represents an empty spot. spots filled with player ids are owned by those players
+        self.board = np.array(
+            [[0 for _ in range(self.cols)] for __ in range(self.rows)]
+        )
+        self.board_ = self.board.copy()
 
-        self.rows, self.cols = rows, cols
-        self.connect_number = 4
+        # award payload
+        self.score_system = {self.player_id: 1, self.opp_id: -1, "tie": 0, False: 0}
 
-        # the board - None is open, red is filled with red coin, and blue is filled with blue coin
-        self.board = [[None for c in range(self.cols)] for r in range(self.rows)]
+        # if it is this bots turn, then go ahead and play
+        if self.turn_id == self.player_id:
+            self.play(self.get_random_move())
 
-        self.move_req = move
+        s = time.time()
+        print(self.is_game_over())
+        print(time.time() - s)
 
-        # variable to control the animating coin, when some one wins
-        self.game_over = False
-        self.winning_indices = []
+    # check if the current board state represents an end state
+    def is_game_over(self):
 
-        if self.turn_id == self.curr_user_id:
-            self.move_req(self.game_id, random.randint(0, self.cols - 1))
-
-    def get_top_row(self, col):
-        # place a coin in the highest row possible for that column
-        for r in range(self.rows - 1, -1, -1):
-            if self.board[r][col] is None:
-                return r
-
-    def minimax(self, depth, is_maximizing, turn, turns=["red", "blue"]):
-
-        if depth > 5:
-            return 0
-
-        result = self.check_game_over()
-
-        # terminal case, game is over so return the score corresponding to the player who won
-        if result is not None:
-            return self.scores[result]
-
-        next_turn = turns[1] if turn == turns[0] else turns[0]
-
-        # it is this players turn, we need to try and get the maximum score
-        if is_maximizing:
-            best_score = -float("inf")
-
-            for c in range(self.cols):
-                r = self.get_top_row(c)
-                if r is not None:
-                    self.board[r][c] = turn
-                    score = self.minimax(depth + 1, False, next_turn, turns)
-                    self.board[r][c] = None
-                    best_score = max(score, best_score)
-
-            return best_score
-
-        # the human player will make a move with the least socre, i.e the best move possible for him
-        else:
-            best_score = float("inf")
-
-            for c in range(self.cols):
-                r = self.get_top_row(c)
-                if r is not None:
-                    self.board[r][c] = turn
-                    score = self.minimax(depth + 1, True, next_turn, turns,)
-                    self.board[r][c] = None
-                    best_score = min(score, best_score)
-
-            return best_score
-
-    def move(self):
-        # AI to make its turn
-        best_score = -float("inf")
-        best_move = None
-
-        for c in range(self.cols):
-            if self.board[0][c] is None:
-                row = self.get_top_row(c)
-                if row is not None:
-                    self.board[row][c] = self.player_color
-
-                    # humans turn
-                    score = self.minimax(0, False, self.opp_color, ["red", "blue"],)
-
-                    self.board[row][c] = None
-
-                    if score > best_score:
-                        best_score = score
-                        best_move = c
-
-        self.move_req(self.game_id, best_move)
-
-    def check_game_over(self):
+        # check if some one has won
         for r in range(self.rows):
             for c in range(self.cols):
-                # check for 4 in a row
-                if c <= self.cols - self.connect_number and self.board[r][c]:
-                    indices = [(r, c)]
-                    for i in range(1, self.connect_number):
-                        if self.board[r][c + i] != self.board[r][c]:
-                            break
-                        indices.append((r, c + i))
-                    else:
-                        # found 4 same coins in a row
-                        return self.board[r][c]
 
-                # check for 4 in a column
-                if r <= self.rows - self.connect_number and self.board[r][c]:
-                    indices = [(r, c)]
-                    for i in range(1, self.connect_number):
-                        if self.board[r + i][c] != self.board[r][c]:
-                            break
-                        indices.append((r + i, c))
-                    else:
-                        # found 4 same coins in a column
-                        return self.board[r][c]
+                if c <= self.cols - self.connect_n:
+                    unique_coins_horizontal = np.unique(
+                        self.board[r][c : c + self.connect_n]
+                    )
+                    # connect_n coins found horizontally
+                    if (
+                        len(unique_coins_horizontal) == 1
+                        and unique_coins_horizontal[0] != 0
+                    ):
+                        return unique_coins_horizontal[0]
 
-                # check for left-right and top-bottom diagonal
-                if (
-                    r <= self.rows - self.connect_number
-                    and c <= self.cols - self.connect_number
-                    and self.board[r][c]
-                ):
-                    indices = [(r, c)]
-                    for i in range(1, self.connect_number):
-                        if self.board[r + i][c + i] != self.board[r][c]:
-                            break
-                        indices.append((r + i, c + i))
-                    else:
-                        # found 4 same coins in the diagonal
-                        return self.board[r][c]
+                if r <= self.rows - self.connect_n:
+                    unique_coins_vertical = np.unique(
+                        self.board[r : r + self.connect_n, c]
+                    )
+                    # connect_n coins found vertically
+                    if (
+                        len(unique_coins_vertical) == 1
+                        and unique_coins_vertical[0] != 0
+                    ):
+                        return unique_coins_vertical[0]
 
-                # check for right-left and top-bottom diagonal
-                if (
-                    r <= self.rows - self.connect_number
-                    and c >= self.connect_number - 1
-                    and self.board[r][c]
-                ):
-                    indices = [(r, c)]
-                    for i in range(1, self.connect_number):
-                        if self.board[r + i][c - i] != self.board[r][c]:
-                            break
-                        indices.append((r + i, c - i))
-                    else:
-                        # found 4 same coins in the diagonal
-                        return self.board[r][c]
+                    # diagonals
+                    if c <= self.cols - self.connect_n:
+                        # connect_n x connect_n square. we care abt the 2 diagonals of this square
+                        square = self.board[
+                            r : r + self.connect_n, c : c + self.connect_n
+                        ]
 
-        # it is a tie
-        for row in self.board:
-            if row.count(None) > 0:
-                break
-        else:
+                        # top left -> bottom right diagonal
+                        tlbr_unique = np.unique(square.diagonal())
+                        if len(tlbr_unique) == 1 and tlbr_unique[0] != 0:
+                            return tlbr_unique[0]
+
+                        # mirror this square and find its diagonal
+                        # top right -> bottom left
+                        trbl_unique = np.unique(np.fliplr(square).diagonal())
+                        if len(trbl_unique) == 1 and trbl_unique[0] != 0:
+                            return trbl_unique[0]
+
+        if 0 not in self.board:
+            # no empty spot left *and* nobody has won
             return "tie"
 
-        return None
+        # game not over
+        return False
 
-    # what happens when the game ends?
-    def game_over_protocol(self, indices, winner_id, *args):
-        print(f"[BOT]: GAME OVER {winner_id} won!")
+    # evaluate a score for this game state
+    def eval(self, winner=False):
+        # if the game is over, then game_over passed may be one of [self.player_id,self.opp_id,"tie"]
+        return self.score_system.get(winner)
+
+    # get all possible moves for current game state
+    def get_moves(self):
+
+        for c in range(self.cols):
+            # index 0 is the top row
+            if self.board[0][c] == 0:
+                yield c
+
+    # get a random move
+    def get_random_move(self):
+        moves = [move for move in self.get_moves()]
+        return random.choice(moves)
+
+    # drop a coin in a column
+    def _move(self, col, id):
+        # loop thru the rows in reverse order. so the bottom one comes first
+        for r in range(self.rows - 1, -1, -1):
+            if self.board[r][col] == 0:
+                self.board[r][col] = id
+                return (r, col)
+
+        raise Exception(f"FULL COLUMN {col}, id: {id}")
+
+    def _undo_move(self, r, c):
+        # loop thru the rows in reverse order. so the bottom one comes first
+        if self.board[r][c] != 0:
+            self.board[r][c] = 0
+            return True
+
+        raise Exception(f"EMPTY SPOT {r},{c}")
+
+    def play(self, move=None):
+        if move is None:
+            alpha = -float("inf")  # worst possible score for maximizing player.
+            beta = float("inf")  # worst possible score for minimizing player.
+            max_depth = 10  # max depth to search to
+
+            best_score, best_move, n = minimax(self, max_depth, alpha, beta, True)
+
+            print(f"score is {best_score}, best move is {best_move}, n: {n}")
+
+            # send the request to move to the server
+            self.move_req(self.game_id, best_move)
+
+        else:
+            self.move_req(self.game_id, move)
 
     # place a coin in the desired location
     def place(self, data):
-        to = data["to"]  # (row,col)
-        text = data["turn_string"]
-        self.board[to[0]][to[1]] = text
+        row, col = data["to"]  # (row,col)
+        mover_id = data["who"]
 
-        self.turn_id = data["turn_id"]
-        self.turn = "red" if self.turn_id == self.red_id else "blue"
+        # place the mover's id in that cell
+        self.board[row][col] = mover_id
 
-        if self.turn_id == self.curr_user_id:
-            self.move()
+        self.turn_id = int(data["turn_id"])  # whose turn is it now
+
+        # if it is this bots turn - play
+        if self.turn_id == self.player_id:
+            print("MY TURN")
+            self.play()
+
+    def game_over_protocol(self, indices, winner_id):
+        print(f"[BOT]: {winner_id} has won!")
+
+
+# minimax algorithm implementation, with alpha beta pruning
+def minimax(game, depth, alpha, beta, isMaximizing):
+    n = 1
+
+    winner = game.is_game_over()
+    if winner or depth == 0:
+        # return score of the board state
+        return game.eval(winner), None, n
+
+    # the bots turn
+    if isMaximizing:
+        best_score = -float("inf")
+        best_move = None
+
+        for move in game.get_moves():
+            # make this bot move
+            row, col = game._move(move, game.player_id)
+
+            # calculate the score from this branch
+            # next turn will be of the minimizing player
+            score, _, n_ = minimax(game, depth - 1, alpha, beta, False)
+            n += n_
+
+            game._undo_move(row, col)
+
+            # if we have a better score than before...
+            if score > best_score:
+                best_score = score
+                best_move = move
+
+            alpha = max(alpha, score)
+
+            # beta cut off
+            # if beta <= alpha:
+            #     break
+
+        return best_score, best_move, n
+
+    # minimizing player
+    else:
+        best_score = float("inf")
+
+        for move in game.get_moves():
+            # make the opponents move
+            row, col = game._move(move, game.opp_id)
+
+            # calculate the score from this branch
+            # next turn will be of the maximizing player
+            score, _, n_ = minimax(game, depth - 1, alpha, beta, True)
+            n += n_
+
+            game._undo_move(row, col)
+
+            # if we have a better score than before...
+            best_score = min(best_score, score)
+            beta = min(beta, score)
+
+            # beta cut off
+            # if beta <= alpha:
+            #     break
+
+        return best_score, None, n
 

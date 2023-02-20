@@ -1,8 +1,14 @@
 import json, time, pickle, pygame
+
 # import numpy as np
 from network import Network
 from _thread import start_new_thread
 from utilities import *
+
+with open("bot_img.png") as f:
+    img = pygame.image.load(f)
+    img = pygame.surfarray.array3d(pygame.transform.scale(img, (256, 256),))
+
 
 run = True
 
@@ -89,25 +95,23 @@ def send_update_details_request(changed):
     send(req)
 
 
+def send_image_details(img):
+    image_bytes = img.tobytes()
+    size = len(image_bytes)
+
+    # send the server the details of the image
+    send({"image": {"size": size, "shape": img.shape, "dtype": img.dtype}})
+
+
 # send an image in batches
 def send_image(img):
     image_bytes = img.tobytes()
     size = len(image_bytes)
 
-    # send the server the size of the image
-    send({"image": {"size": size, "shape": img.shape, "dtype": img.dtype}})
-
-    allowed = n.recv()
-    print(allowed)
-
-    time.sleep(1)
-
-    print("started sending image")
+    print("Uploading pfp...")
     # send the image bytes
     for batch in range(0, size, 2048):
         send(image_bytes[batch : batch + 2048], pickle_data=False)
-
-    print("done sending image")
 
 
 # add an user to the active users
@@ -181,13 +185,19 @@ def recieve():
                     cols=game_details["board"].cols,
                 )
             elif game_name == "connect4":
-                game_board = Connect4_Board(
-                    game_id,
-                    curr_user_id,
+                player_ids = [
                     game_details["board"].red_id,
                     game_details["board"].blue_id,
-                    move=move,
+                ]
+                opp_id = (
+                    player_ids[0] if player_ids[1] == curr_user_id else player_ids[1]
+                )
+                game_board = ConnectAI(
+                    game_id,
+                    curr_user_id,
+                    opp_id,
                     turn_id=game_details["board"].turn_id,
+                    move_req=move,
                     rows=game_details["board"].rows,
                     cols=game_details["board"].cols,
                 )
@@ -213,6 +223,15 @@ def recieve():
         if data.get("updated"):
             update_user(data["updated"]["user_id"], data["updated"]["changed"])
 
+        if data.get("message"):
+            print(data["message"])
+
+        if data.get("image_allowed"):
+            if data["image_allowed"]:
+                send_image(img)
+            else:
+                print("Error while updating pfp: ", data["error"])
+
 
 # setup all the variables and connect to the server
 def setup(error=None):
@@ -227,6 +246,7 @@ def setup(error=None):
         )
 
     active_users = recieve_active_users()  # load all the users
+    time.sleep(2)
 
     curr_user = active_users[curr_user_id]  # load the current user
 
@@ -238,17 +258,10 @@ def main():
     # recieve data from the server in a seperate thread
     start_new_thread(recieve, ())
 
+    print("Updating profile...")
     send({"updated": {"bot": True, "username": "SlUgGyFrOgS"}})
 
-    message = n.recv()
-
-    time.sleep(1)
-
-    with open("bot_img.png") as f:
-        img = pygame.image.load(f)
-        img = pygame.surfarray.array3d(pygame.transform.scale(img, (256, 256),))
-
-        send_image(img)
+    send_image_details(img)
 
     # keep the program running
     while run:

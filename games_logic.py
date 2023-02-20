@@ -266,7 +266,7 @@ class Connect4_Logic:
 
         # it is a tie
         for row in self.board:
-            if row.count(None) > 0:
+            if None in row:
                 break
         else:
             return {"winner_id": None, "tie": True}
